@@ -24,6 +24,8 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
+using Microsoft.IdentityModel.Claims;
+using System.IdentityModel.Tokens;
 
 namespace Two10.Swt
 {
@@ -48,9 +50,9 @@ namespace Two10.Swt
             get { return audience; }
         }
 
-        public long ExpiresOn
+        public DateTime ExpiresOn
         {
-            get { return expiresOn; }
+            get { return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(expiresOn); }
         }
 
         public NameValueCollection Claims
@@ -64,11 +66,8 @@ namespace Two10.Swt
         }
 
         public SimpleWebToken(string issuer, string audience, long expiresOn, NameValueCollection claims)
+            : this(issuer, audience, expiresOn, claims, null)
         {
-            this.issuer = issuer;
-            this.audience = audience;
-            this.expiresOn = expiresOn;
-            this.claims = claims;
         }
 
         public SimpleWebToken(string issuer, string audience, long expiresOn, NameValueCollection claims, string hmacSha256)
@@ -78,6 +77,19 @@ namespace Two10.Swt
             this.expiresOn = expiresOn;
             this.claims = claims;
             this.hmacSha256 = hmacSha256;
+        }
+
+        public SimpleWebToken(string issuer, string audience, DateTime expiresOn, NameValueCollection claims)
+            : this(issuer, audience, expiresOn, claims, null)
+        {
+            
+        }
+
+        public SimpleWebToken(string issuer, string audience, DateTime expiresOn, NameValueCollection claims, string hmacSha256)
+            : this(issuer, audience, 0, claims, hmacSha256)
+        {
+            DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            this.expiresOn = (long)(expiresOn - epoch).TotalSeconds;
         }
 
         public static SimpleWebToken Parse(string s)
@@ -209,6 +221,43 @@ namespace Two10.Swt
         public bool CheckSignature(string signingKey)
         {
             return this.ComputeSignature(signingKey) == hmacSha256;
+        }
+
+        public static SimpleWebTokenValidationResult Validate(SimpleWebToken token, string signingKey, string trustedIssuer = null, string expectedAudience = null)
+        {
+            SimpleWebTokenValidationResult result = SimpleWebTokenValidationResult.Valid;
+
+            if (token == null)
+                throw new ArgumentNullException("token", "token cannot be null");
+
+            if(string.IsNullOrWhiteSpace(signingKey))
+                throw new ArgumentNullException("signingKey", "signingKey cannot be null, empty or consisting of white space");
+
+            if (DateTime.UtcNow > token.ExpiresOn)
+                result = SimpleWebTokenValidationResult.TokenExpired;
+            
+            else if (!token.CheckSignature(signingKey))
+                result = SimpleWebTokenValidationResult.InvalidSignature;
+            
+            else if (trustedIssuer != null && token.Issuer != trustedIssuer)
+                result = SimpleWebTokenValidationResult.IssuerNotTrusted;
+
+            else if (expectedAudience != null && token.Audience != expectedAudience)
+                result = SimpleWebTokenValidationResult.UnexpectedAudience;
+
+            return result;
+        }
+
+        public IClaimsPrincipal ToPrinciple(string nameClaimType = ClaimTypes.Name, string roleClaimType = ClaimTypes.Role)
+        {
+            var claims = from key in this.Claims.AllKeys
+                         from value in this.Claims.GetValues(key)
+                         select new Microsoft.IdentityModel.Claims.Claim(key, value);
+            
+            var identity = new ClaimsIdentity(claims, "OATH_WRAP", nameClaimType, roleClaimType);
+            var principle = new ClaimsPrincipal(new IClaimsIdentity[] { identity });
+
+            return principle;
         }
 
         public bool IsExpired()

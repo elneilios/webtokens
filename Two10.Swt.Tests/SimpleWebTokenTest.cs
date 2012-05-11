@@ -17,10 +17,12 @@
 //
 #endregion
 
+using System;
 using System.Collections.Specialized;
 using System.Net;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.IdentityModel.Claims;
 
 namespace Two10.Swt.Tests
 {
@@ -83,7 +85,7 @@ namespace Two10.Swt.Tests
 
      
         [TestMethod()]
-        public void Test1()
+        public void TestRestEndpoint_NonAdmin()
         {
             string wrapEndpoint = "http://localhost:50865/my/wrap";
             string wrapName = "robblackwell";
@@ -96,32 +98,57 @@ namespace Two10.Swt.Tests
                 wrapScope);
 
             WebClient client = new WebClient();
-
             client.Headers.Add("Authorization", "WRAP access_token=\"" + swt.ToUrlEncodedString() + "\"");
 
+            // Test Non-Admin
             byte[] responseBytes = client.DownloadData("http://localhost:50865/my/test");
-
             string response = Encoding.UTF8.GetString(responseBytes);
 
-            Assert.IsTrue(response.Contains("Hello"));
+            Assert.IsTrue(response.Contains("Hello"), "Non-admin authorization failed");
         }
 
         [TestMethod()]
-        public void Test2()
+        public void TestRestEndpoint_Admin()
+        {
+            string wrapEndpoint = "http://localhost:50865/my/wrap";
+            string wrapName = "robblackwell";
+            string wrapPassword = "MyPassword";
+            string wrapScope = "http://www.robblackwell.org.uk/";
+
+            SimpleWebToken swt = SimpleWebToken.GetToken(wrapEndpoint,
+                wrapName,
+                wrapPassword,
+                wrapScope);
+
+            WebClient client = new WebClient();
+            client.Headers.Add("Authorization", "WRAP access_token=\"" + swt.ToUrlEncodedString() + "\"");
+
+            byte[] responseBytes = client.DownloadData("http://localhost:50865/my/testadmin");
+            string response = Encoding.UTF8.GetString(responseBytes);
+
+            Assert.IsTrue(response.Contains("Hello"), "Admin authorization failed");
+        }
+
+        [TestMethod()]
+        public void TestPredefinedToken()
         {
             string testKey = "8YMtduGa+9B8MpSEIESXI0wuzvyspxJ1TGhSDlDvjSY=";
-
             string signedToken = "wrap_access_token=http%253a%252f%252fschemas.xmlsoap.org%252fws%252f2005%252f05%252fidentity%252fclaims%252fnameidentifier%3drobblackwell%26http%253a%252f%252fschemas.microsoft.com%252faccesscontrolservice%252f2010%252f07%252fclaims%252fidentityprovider%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26Audience%3dhttp%253a%252f%252fwww.robblackwell.org.uk%252f%26ExpiresOn%3d1331740071%26Issuer%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26HMACSHA256%3d2QnptKank3k4MwKrwhLIA4qyG1%252fF1cCmHrr%252f2W6xLxw%253d&wrap_access_token_expires_in=600";
+            string trustedIssuer = "https://clazure.accesscontrol.windows.net/";
+            string expectedAudience = "http://www.robblackwell.org.uk/";
 
-            SimpleWebToken swt = SimpleWebToken.Parse(signedToken);
+            SimpleWebToken swt = SimpleWebToken.Parse(signedToken);           
 
-            Assert.IsTrue(swt.CheckSignature(testKey));
+            CheckToken(swt, testKey, trustedIssuer, expectedAudience);
+            CheckPrinciple(swt);
         }
 
         [TestMethod()]
-        public void Test3()
+        public void TestTokenConstructor()
         {
             string testKey = "ZncEZCBioztYEE3iC6dSnv+lJC4NmFX7Ns5pDgPKCwU=";
+            string trustedIssuer = "https://clazure.accesscontrol.windows.net/";
+            string expectedAudience = "http://www.robblackwell.org.uk/";
 
             NameValueCollection claims = new NameValueCollection();
 
@@ -129,14 +156,37 @@ namespace Two10.Swt.Tests
             claims.Add("http://schemas.microsoft.com/accesscontrolservice/2010/07/claims/identityprovider", "https://clazure.accesscontrol.windows.net/");
 
             SimpleWebToken swt = new SimpleWebToken("https://clazure.accesscontrol.windows.net/",
-                    "http://www.robblackwell.org.uk/", 1331740071, claims);
+                    "http://www.robblackwell.org.uk/", DateTime.UtcNow.AddHours(1), claims);
 
             swt.Sign(testKey);
 
-            Assert.IsTrue(swt.CheckSignature(testKey));
+            CheckToken(swt, testKey, trustedIssuer, expectedAudience);
+            CheckPrinciple(swt);
         }
 
-       
+
+        private static void CheckToken(SimpleWebToken swt, string testKey, string trustedIssuer, string expectedAudience)
+        {
+            SimpleWebTokenValidationResult validationResult = SimpleWebToken.Validate(swt, testKey, trustedIssuer, expectedAudience);
+            Assert.IsTrue(validationResult == SimpleWebTokenValidationResult.Valid, string.Format("Invalid Token: {0}", validationResult.ToString()));
+        }
+
+        private static void CheckPrinciple(SimpleWebToken swt)
+        {
+            IClaimsPrincipal principle = swt.ToPrinciple(nameClaimType: ClaimTypes.NameIdentifier);
+            Assert.IsNotNull(principle);
+
+            IClaimsIdentity identity = principle.Identity as IClaimsIdentity;
+            Assert.IsNotNull(identity);
+
+            if (identity != null)
+            {
+                foreach (var claim in identity.Claims)
+                {
+                    System.Console.WriteLine(string.Format("Claim Type: {0}, Claim Value: {1}", claim.ClaimType, claim.Value));
+                }
+            }
+        }
 
     }
 }

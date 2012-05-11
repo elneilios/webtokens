@@ -17,6 +17,7 @@
 //
 #endregion
 
+using System;
 using System.Collections.Specialized;
 using System.Web.Mvc;
 using Two10.Swt;
@@ -40,9 +41,10 @@ namespace Two10.SampleRest.Controllers
 
                 claims.Add("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "robblackwell");
                 claims.Add("http://schemas.microsoft.com/accesscontrolservice/2010/07/claims/identityprovider", "http://localhost:50865/");
+                claims.Add("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "Admin");
 
                 SimpleWebToken swt = new SimpleWebToken("http://localhost:50865/",
-                    "http://www.robblackwell.org.uk/", 1331740071, claims);
+                    "http://www.robblackwell.org.uk/", DateTime.UtcNow.AddHours(1), claims);
 
                 swt.Sign(signingKey);
                 return Content( "wrap_access_token=" + swt.ToUrlEncodedString() + "&wrap_access_token_expires_in=600", "application/xml");
@@ -57,14 +59,22 @@ namespace Two10.SampleRest.Controllers
         // Note that a custom authorization attribute is used to secure this endpoint, and consumers
         // must present a valid simple web token ussued from the above WRAP endpoint.
 
-        [RESTAuthorize]
+        [TokenAuthorize(Two10.Swt.TokenType.Swt)]
         public ActionResult Test()
         {
             string foo = "Hello World";
 
             Response.ContentType = "application/json";
             return Json(foo, JsonRequestBehavior.AllowGet);
+        }
 
+        [TokenAuthorize(Two10.Swt.TokenType.Swt, Roles = "Admin")]
+        public ActionResult TestAdmin()
+        {
+            string foo = "Hello Admin World";
+
+            Response.ContentType = "application/json";
+            return Json(foo, JsonRequestBehavior.AllowGet);
         }
 
     }
