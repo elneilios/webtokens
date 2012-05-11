@@ -16,10 +16,10 @@ May 2012
 
 TODO
 
-Check for matching realm/scope
-Support DateTime object for specifying expiry
-Surface the claims as part of the Authorize attribute or Iclaimprinciple.
-Can we move RESTAUthorize to Two10.Swt ?
+Check for matching realm/scope - DONE
+Support DateTime object for specifying expiry - DONE
+Surface the claims as part of the Authorize attribute or Iclaimprinciple. - DONE
+Can we move RESTAUthorize to Two10.Swt ? - DONE
 What about building a TokenIssuer class to wrap up the stuff in the WRAP endpoint?
 Could we use Uri.EscapeUriString insted of HTTPUtility to allow .NET 4 CLient framework instead of full framework? (Beware capitalization).
 What about refresh tokens?
