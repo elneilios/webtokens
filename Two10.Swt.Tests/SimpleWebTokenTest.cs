@@ -133,11 +133,11 @@ namespace Two10.Swt.Tests
         public void TestPredefinedToken()
         {
             string testKey = "8YMtduGa+9B8MpSEIESXI0wuzvyspxJ1TGhSDlDvjSY=";
-            string signedToken = "wrap_access_token=http%253a%252f%252fschemas.xmlsoap.org%252fws%252f2005%252f05%252fidentity%252fclaims%252fnameidentifier%3drobblackwell%26http%253a%252f%252fschemas.microsoft.com%252faccesscontrolservice%252f2010%252f07%252fclaims%252fidentityprovider%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26Audience%3dhttp%253a%252f%252fwww.robblackwell.org.uk%252f%26ExpiresOn%3d1331740071%26Issuer%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26HMACSHA256%3d2QnptKank3k4MwKrwhLIA4qyG1%252fF1cCmHrr%252f2W6xLxw%253d&wrap_access_token_expires_in=600";
+            string signedToken = "wrap_access_token=http%253a%252f%252fschemas.xmlsoap.org%252fws%252f2005%252f05%252fidentity%252fclaims%252fnameidentifier%3drobblackwell%26http%253a%252f%252fschemas.microsoft.com%252faccesscontrolservice%252f2010%252f07%252fclaims%252fidentityprovider%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26Audience%3dhttp%253a%252f%252fwww.robblackwell.org.uk%252f%26ExpiresOn%3d4492420967%26Issuer%3dhttps%253a%252f%252fclazure.accesscontrol.windows.net%252f%26HMACSHA256%3DEC3lWrnAvucBzZ4LWj1YFCm%2Be9797N%2BLAt4zCq6qdU8%3D&wrap_access_token_expires_in=600";
             string trustedIssuer = "https://clazure.accesscontrol.windows.net/";
             string expectedAudience = "http://www.robblackwell.org.uk/";
 
-            SimpleWebToken swt = SimpleWebToken.Parse(signedToken);           
+            SimpleWebToken swt = SimpleWebToken.Parse(signedToken);
 
             CheckToken(swt, testKey, trustedIssuer, expectedAudience);
             CheckPrinciple(swt);
